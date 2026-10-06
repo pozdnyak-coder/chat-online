@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Онлайн-чат</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: #0f172a; color: #e5e7eb;
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; padding: 16px;
+  }
+  .chat {
+    width: 100%; max-width: 640px; height: 80vh;
+    background: #111827; border-radius: 16px; overflow: hidden;
+    display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  }
+  header {
+    padding: 14px 18px; background: #1f2937; font-weight: 600;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  header .me { font-size: 12px; color: #9ca3af; font-weight: 400; }
+  #messages {
+    flex: 1; overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .msg {
+    max-width: 75%; padding: 8px 12px; border-radius: 14px;
+    background: #1f2937; word-wrap: break-word; line-height: 1.35;
+  }
+  .msg.mine { background: #2563eb; align-self: flex-end; }
+  .msg .meta { font-size: 11px; color: #9ca3af; margin-bottom: 4px; }
+  .msg.mine .meta { color: #dbeafe; }
+  form {
+    display: flex; gap: 8px; padding: 12px; background: #1f2937;
+  }
+  input[type="text"] {
+    flex: 1; padding: 10px 14px; border-radius: 10px; border: none; outline: none;
+    background: #0f172a; color: #e5e7eb; font-size: 15px;
+  }
+  button {
+    padding: 10px 18px; border-radius: 10px; border: none;
+    background: #2563eb; color: white; font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: #1d4ed8; }
+
+  /* модалка имени */
+  .modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    display: flex; justify-content: center; align-items: center; padding: 16px;
+  }
+  .modal.hidden { display: none; }
+  .modal .box {
+    background: #111827; padding: 24px; border-radius: 14px;
+    width: 100%; max-width: 360px;
+  }
+  .modal h2 { margin: 0 0 14px; font-size: 18px; }
+  .modal input { width: 100%; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<div class="modal" id="nameModal">
+  <div class="box">
+    <h2>Как тебя зовут?</h2>
+    <input type="text" id="nameInput" maxlength="20" placeholder="Имя" />
+    <button id="saveName" style="width:100%">Войти в чат</button>
+  </div>
+</div>
+
+<div class="chat">
+  <header>
+    <span>💬 Общий чат</span>
+    <span class="me" id="meLabel"></span>
+  </header>
+  <div id="messages"></div>
+  <form id="form">
+    <input type="text" id="input" placeholder="Сообщение..." autocomplete="off" maxlength="500" />
+    <button type="submit">Отпр.</button>
+  </form>
+</div>
+
+<!-- Firebase SDK (modular v10) -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getFirestore, collection, addDoc, query, orderBy, limit,
+  onSnapshot, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// 🔽 ВСТАВЬ СВОЙ КОНФИГ ИЗ FIREBASE CONSOLE
+const firebaseConfig = {
+  apiKey: "AIza...",
+  authDomain: "xxx.firebaseapp.com",
+  projectId: "xxx",
+  storageBucket: "xxx.appspot.com",
+  messagingSenderId: "123",
+  appId: "1:123:web:abc"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// --- Имя пользователя ---
+const nameModal = document.getElementById('nameModal');
+const nameInput = document.getElementById('nameInput');
+const meLabel  = document.getElementById('meLabel');
+let myName = localStorage.getItem('chatName') || '';
+
+function applyName(name) {
+  myName = name;
+  localStorage.setItem('chatName', name);
+  meLabel.textContent = `Вы: ${name}`;
+  nameModal.classList.add('hidden');
+}
+if (myName) applyName(myName);
+else nameModal.classList.remove('hidden');
+
+document.getElementById('saveName').onclick = () => {
+  const v = nameInput.value.trim();
+  if (v.length < 1) return;
+  applyName(v);
+};
+nameInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('saveName').click();
+});
+
+// --- Сообщения ---
+const messagesEl = document.getElementById('messages');
+const form = document.getElementById('form');
+const input = document.getElementById('input');
+
+const q = query(
+  collection(db, 'messages'),
+  orderBy('createdAt', 'asc'),
+  limit(200)
+);
+
+onSnapshot(q, snap => {
+  messagesEl.innerHTML = '';
+  snap.forEach(doc => {
+    const m = doc.data();
+    if (!m.createdAt) return; // ещё не подтверждено сервером
+    const div = document.createElement('div');
+    div.className = 'msg' + (m.name === myName ? ' mine' : '');
+    const time = m.createdAt.toDate().toLocaleTimeString('ru-RU', {
+      hour: '2-digit', minute: '2-digit'
+    });
+    div.innerHTML = `<div class="meta">${escapeHtml(m.name)} · ${time}</div>${escapeHtml(m.text)}`;
+    messagesEl.appendChild(div);
+  });
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+});
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if (!text || !myName) return;
+  input.value = '';
+  try {
+    await addDoc(collection(db, 'messages'), {
+      name: myName,
+      text,
+      createdAt: serverTimestamp()
+    });
+  } catch (err) {
+    console.error(err);
+    alert('Не удалось отправить: ' + err.message);
+  }
+});
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+</script>
+</body>
+</html>
