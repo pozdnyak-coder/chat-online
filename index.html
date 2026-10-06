@@ -84,24 +84,22 @@
 
 <!-- Firebase SDK (modular v10) -->
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import {
-  getFirestore, collection, addDoc, query, orderBy, limit,
-  onSnapshot, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
 
 // 🔽 ВСТАВЬ СВОЙ КОНФИГ ИЗ FIREBASE CONSOLE
 const firebaseConfig = {
-  apiKey: "AIza...",
-  authDomain: "xxx.firebaseapp.com",
-  projectId: "xxx",
-  storageBucket: "xxx.appspot.com",
-  messagingSenderId: "123",
-  appId: "1:123:web:abc"
+  apiKey: "AIzaSyAipzjTqSy_FEFP72f2VT5_hSLhEa-O_Ow",
+  authDomain: "online-chat-2509b.firebaseapp.com",
+  projectId: "online-chat-2509b",
+  storageBucket: "online-chat-2509b.firebasestorage.app",
+  messagingSenderId: "584553365862",
+  appId: "1:584553365862:web:4a6e802dab4193884a88a7",
+  measurementId: "G-DV1MTRB4PW"
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const analytics = getAnalytics(app);
 
 // --- Имя пользователя ---
 const nameModal = document.getElementById('nameModal');
